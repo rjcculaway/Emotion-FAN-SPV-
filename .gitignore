@@ -8,3 +8,6 @@
 *.pyc
 *.cfg
 !.gitignore
+setup_workspace.sh
+mead_video
+*.pth.tar
