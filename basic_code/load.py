@@ -9,7 +9,19 @@ cate2label = {'CK+':{0: 'Happy', 1: 'Angry', 2: 'Disgust', 3: 'Fear', 4: 'Sad', 
                      'Angry': 1,'Disgust': 2,'Fear': 3,'Happy': 0,'Contempt': 5,'Sad': 4,'Surprise': 6},
 
               'AFEW':{0: 'Happy',1: 'Angry',2: 'Disgust',3: 'Fear',4: 'Sad',5: 'Neutral',6: 'Surprise',
-                  'Angry': 1,'Disgust': 2,'Fear': 3,'Happy': 0,'Neutral': 5,'Sad': 4,'Surprise': 6}}
+                  'Angry': 1,'Disgust': 2,'Fear': 3,'Happy': 0,'Neutral': 5,'Sad': 4,'Surprise': 6},
+
+              'MEAD':{
+                        0:'Angry','Angry':0,
+                        1:'Disgusted','Disgusted':1,
+                        2:'Contempt','Contempt':2,
+                        3:'Fear','Fear':3,
+                        4:'Happy','Happy':4,
+                        5:'Sad','Sad':5,
+                        6:'Surprised','Surprised':6,
+                        7:'Neutral','Neutral':7,
+              }
+}
 
 def ckplus_faces_baseline(video_root, video_list, fold, batchsize_train, batchsize_eval):
     train_dataset = data_generator.TenFold_VideoDataset(
@@ -116,6 +128,31 @@ def afew_faces_fan(root_train, list_train, batchsize_train, root_eval, list_eval
 
     return train_loader, val_loader
 
+def mead_faces_fan(root_train, batchsize_train, root_eval, batchsize_eval):
+
+    train_dataset = data_generator.MEADTripleImageDataset(
+        video_root=root_train,
+        rectify_label=cate2label['MEAD'],
+        transform=transforms.Compose([transforms.Resize(224), transforms.RandomHorizontalFlip(), transforms.ToTensor()]),
+    )
+
+    val_dataset = data_generator.MEADVideoDataset(
+        video_root=root_eval,
+        rectify_label=cate2label['MEAD'],
+        transform=transforms.Compose([transforms.Resize(224), transforms.ToTensor()]),
+        csv=False)
+
+    train_loader = torch.utils.data.DataLoader(
+        train_dataset,
+        batch_size=batchsize_train, shuffle=True,
+        num_workers=8, pin_memory=True, drop_last=True)
+
+    val_loader = torch.utils.data.DataLoader(
+        val_dataset,
+        batch_size=batchsize_eval, shuffle=False,
+        num_workers=8, pin_memory=True)
+    
+    return train_loader, val_loader
 
 def model_parameters(_structure, _parameterDir):
 
