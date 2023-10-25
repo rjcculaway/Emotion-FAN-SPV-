@@ -25,6 +25,13 @@ class VideoDataset(data.Dataset):
 
     def __len__(self):
         return len(self.imgs_first)
+    
+## data generator for mead
+class MEADVideoDataset(VideoDataset):
+    def __init__(self, video_root, rectify_label=None, transform=None, csv = False):
+
+        self.imgs_first, self.index = load_mead_imgs_total_frame(video_root, rectify_label)
+        self.transform = transform
 
 # 
 class TripleImageDataset(data.Dataset):
@@ -54,6 +61,13 @@ class TripleImageDataset(data.Dataset):
 
     def __len__(self):
         return len(self.imgs_first)
+
+class MEADTripleImageDataset(TripleImageDataset):
+    def __init__(self, video_root, rectify_label = None, transform = None):
+        self.imgs_first, self.imgs_second, self.imgs_third, self.index = load_imgs_tsn_mead(video_root, rectify_label)
+        
+        self.transform = transform
+    
 
 def load_imgs_tsn(video_root, video_list, rectify_label):
     imgs_first = list()
@@ -108,6 +122,56 @@ def load_imgs_tsn(video_root, video_list, rectify_label):
         # index = index.astype(int)
     return imgs_first, imgs_second, imgs_third, index
 
+def load_imgs_tsn_mead(video_root, rectify_label = None):
+    imgs_first = list()
+    imgs_second = list()
+    imgs_third = list()
+    
+    index = []
+    
+    identities = [os.path.basename(dir) for dir in os.listdir(video_root)]
+    random.shuffle(identities)
+    
+    for id, identity in enumerate(identities):
+        videos = os.listdir(os.path.join(video_root, identity))
+        for video in videos:
+            video_name = os.path.basename(video)
+            label = rectify_label[video_name.split('-')[1].capitalize()]
+            
+            video_dir = os.path.join(video_root, identity, video)
+            # print(video_dir)
+            frames = os.listdir(video_dir)
+            frames.sort()
+            frame_count = len(frames)
+            num_per_part = int(frame_count) // 3
+            
+            if int(frame_count) > 3:
+                for i in range(frame_count):
+                    random_select_first = random.randint(0, num_per_part)
+                    random_select_second = random.randint(num_per_part, num_per_part * 2)
+                    random_select_third = random.randint(2 * num_per_part, len(frames) - 1)
+
+                    img_path_first = os.path.join(video_dir, frames[random_select_first])
+                    img_path_second = os.path.join(video_dir, frames[random_select_second])
+                    img_path_third = os.path.join(video_dir, frames[random_select_third])
+
+                    imgs_first.append((img_path_first, label))
+                    imgs_second.append((img_path_second, label))
+                    imgs_third.append((img_path_third, label))
+            else:
+                for j in range(len(frames)):
+                    img_path_first = os.path.join(video_dir, frames[j])
+                    img_path_second = os.path.join(video_dir, random.choice(frames))
+                    img_path_third = os.path.join(video_dir, random.choice(frames))
+
+                    imgs_first.append((img_path_first, label))
+                    imgs_second.append((img_path_second, label))
+                    imgs_third.append((img_path_third, label))
+            ###  return video frame index  #####
+            # print(np.ones(frame_count) * id)
+            index = np.append(index, np.ones(frame_count) * id)  # id: 0 : 379
+        # index = np.concatenate(index, axis=0)
+    return imgs_first, imgs_second, imgs_third, index
 
 def load_imgs_total_frame(video_root, video_list, rectify_label):
     imgs_first = list()
@@ -139,6 +203,34 @@ def load_imgs_total_frame(video_root, video_list, rectify_label):
         # index = index.astype(int)
     return imgs_first, index
     
+def load_mead_imgs_total_frame(video_root, rectify_label):
+    imgs_first = list()
+    
+    index = []
+    video_names = []
+    
+    identities = [os.path.basename(dir) for dir in os.listdir(video_root)]
+    random.shuffle(identities)
+    
+    for id, identity in enumerate(identities):
+        videos = os.listdir(os.path.join(video_root, identity))
+        for video in videos:
+            video_name = os.path.basename(video)
+            label = rectify_label[video_name.split('-')[1].capitalize()]
+            
+            video_dir = os.path.join(video_root, identity, video)
+            frames = os.listdir(video_dir)
+            frames.sort()
+            frame_count = len(frames)
+            
+            for frame in frames:
+                imgs_first.append((os.path.join(video_dir, frame), label))
+            
+            video_names.append(video_name)
+            index = np.append(index, np.ones(frame_count) * id)  # id: 0 : 379
+        # index = np.concatenate(index, axis=0)
+    return imgs_first, index
+
 ## data generator for ck_plus
 class TenFold_VideoDataset(data.Dataset):
     def __init__(self, video_root='', video_list='', rectify_label=None, transform=None, fold=1, run_type='train'):
