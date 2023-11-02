@@ -154,6 +154,21 @@ def mead_faces_fan(root_train, batchsize_train, root_eval, batchsize_eval):
     
     return train_loader, val_loader
 
+def mead_faces_fan_single(root_eval, batchsize_eval):
+
+    val_dataset = data_generator.MEADVideoDatasetSingle(
+        video_root=root_eval,
+        rectify_label=cate2label['MEAD'],
+        transform=transforms.Compose([transforms.Resize(224), transforms.ToTensor()]),
+        csv=False)
+
+    val_loader = torch.utils.data.DataLoader(
+        val_dataset,
+        batch_size=batchsize_eval, shuffle=False,
+        num_workers=8, pin_memory=True)
+    
+    return val_loader
+
 def model_parameters(_structure, _parameterDir):
 
     checkpoint = torch.load(_parameterDir)

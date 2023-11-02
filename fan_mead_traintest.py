@@ -4,7 +4,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
+import numpy
+import torchvision
 from basic_code import load, util, networks
+from PIL import Image
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 logger = util.Logger('./log/','fan_mead')
 def main():
@@ -49,12 +52,12 @@ def main():
         is_best = acc_epoch > best_acc
         if is_best:
             logger.print('better model!')
-            best_acc = max(acc_epoch, best_acc)
-            util.save_checkpoint({
-                'epoch': epoch + 1,
-                'state_dict': model.state_dict(),
-                'accuracy': acc_epoch,
-            }, at_type=at_type)
+        best_acc = max(acc_epoch, best_acc)
+        util.save_checkpoint({
+            'epoch': epoch + 1,
+            'state_dict': model.state_dict(),
+            'accuracy': acc_epoch,
+        }, at_type=at_type)
             
         lr_scheduler.step()
         logger.print("epoch: {:} learning rate:{:}".format(epoch+1, optimizer.param_groups[0]['lr']))
@@ -71,7 +74,6 @@ def train(train_loader, model, optimizer, epoch):
 
     model.train()
     for i, (input_first, input_second, input_third, target_first, index) in enumerate(train_loader):
-        print(target_first)
         target_var = target_first.to(DEVICE)
         input_var = torch.stack([input_first, input_second , input_third], dim=4).to(DEVICE)
         # compute output
@@ -80,9 +82,10 @@ def train(train_loader, model, optimizer, epoch):
         loss = F.cross_entropy(pred_score, target_var)
         loss = loss.sum()
         #
-        output_store_fc.append(pred_score)
-        target_store.append(target_var)
-        index_vector.append(index)
+        if i < 200:
+            output_store_fc.append(pred_score)
+            target_store.append(target_var)
+            index_vector.append(index)
         # measure accuracy and record loss
         acc_iter = util.accuracy(pred_score.data, target_var, topk=(1,))
         losses.update(loss.item(), input_var.size(0))
@@ -93,6 +96,9 @@ def train(train_loader, model, optimizer, epoch):
         optimizer.step()
 
         if i % 200 == 0:
+            # img = torchvision.transforms.ToPILImage()(torch.squeeze(input_first.cpu().detach()[0]))
+            # if int(pred_score.argmax().item()) in load.cate2label["MEAD"]:
+            #     img.save("tests/{}vs{}.jpg".format(load.cate2label["MEAD"][int(pred_score.argmax().item())], load.cate2label["MEAD"][int(target_first.cpu().detach())]))
             logger.print('Epoch: [{:3d}][{:3d}/{:3d}]\t'
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                   'Acc@1 {topframe.val:.3f} ({topframe.avg:.3f})\t'
@@ -124,17 +130,19 @@ def val(val_loader, model, at_type):
     target_store = []
     index_vector = []
     with torch.no_grad():
-        for i, (input_var, target, index) in enumerate(val_loader):
+        for i, (path, input_var, target, index) in enumerate(val_loader):
             # compute output
             target = target.to(DEVICE)
             input_var = input_var.to(DEVICE)
             ''' model & full_model'''
             f, alphas = model(input_var, phrase = 'eval')
-
-            output_store_fc.append(f)
-            output_alpha.append(alphas)
-            target_store.append(target)
-            index_vector.append(index)
+            if i < 200:
+                output_store_fc.append(f)
+                output_alpha.append(alphas)
+                target_store.append(target)
+                index_vector.append(index)
+            else:
+                break
 
         index_vector = torch.cat(index_vector, dim=0)  # [256] ... [256]  --->  [21570]
         index_matrix = []

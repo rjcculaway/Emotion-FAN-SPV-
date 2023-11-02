@@ -29,9 +29,34 @@ class VideoDataset(data.Dataset):
 ## data generator for mead
 class MEADVideoDataset(VideoDataset):
     def __init__(self, video_root, rectify_label=None, transform=None, csv = False):
-
+        
+        self.rectify_label = rectify_label
         self.imgs_first, self.index = load_mead_imgs_total_frame(video_root, rectify_label)
         self.transform = transform
+        
+    def __getitem__(self, index):
+        path_first, target_first = self.imgs_first[index]
+        img_first = Image.open(path_first).convert("RGB")
+        if self.transform is not None:
+            img_first = self.transform(img_first)
+
+        return path_first, img_first, target_first, self.index[index]
+    
+## data generator for mead
+class MEADVideoDatasetSingle(VideoDataset):
+    def __init__(self, video_root, rectify_label=None, transform=None, csv = False):
+        
+        self.rectify_label = rectify_label
+        self.imgs_first, self.index = load_mead_imgs_total_frame_single(video_root, rectify_label)
+        self.transform = transform
+        
+    def __getitem__(self, index):
+        path_first, target_first = self.imgs_first[index]
+        img_first = Image.open(path_first).convert("RGB")
+        if self.transform is not None:
+            img_first = self.transform(img_first)
+
+        return path_first, img_first, target_first, self.index[index]
 
 # 
 class TripleImageDataset(data.Dataset):
@@ -131,8 +156,8 @@ def load_imgs_tsn_mead(video_root, rectify_label = None):
     
     identities = [os.path.basename(dir) for dir in os.listdir(video_root)]
     random.shuffle(identities)
-    
-    for id, identity in enumerate(identities):
+    video_id = 0;
+    for identity in identities:
         videos = os.listdir(os.path.join(video_root, identity))
         for video in videos:
             video_name = os.path.basename(video)
@@ -169,7 +194,8 @@ def load_imgs_tsn_mead(video_root, rectify_label = None):
                     imgs_third.append((img_path_third, label))
             ###  return video frame index  #####
             # print(np.ones(frame_count) * id)
-            index = np.append(index, np.ones(frame_count) * id)  # id: 0 : 379
+            index = np.append(index, np.ones(frame_count) * video_id)  # id: 0 : 379
+            video_id += 1
         # index = np.concatenate(index, axis=0)
     return imgs_first, imgs_second, imgs_third, index
 
@@ -228,6 +254,52 @@ def load_mead_imgs_total_frame(video_root, rectify_label):
             
             video_names.append(video_name)
             index = np.append(index, np.ones(frame_count) * id)  # id: 0 : 379
+        # index = np.concatenate(index, axis=0)
+    return imgs_first, index
+
+def load_mead_imgs_total_frame(video_root, rectify_label):
+    imgs_first = list()
+    
+    index = []
+    video_names = []
+    
+    identities = [os.path.basename(dir) for dir in os.listdir(video_root)]
+    random.shuffle(identities)
+    
+    for id, identity in enumerate(identities):
+        videos = os.listdir(os.path.join(video_root, identity))
+        for video in videos:
+            video_name = os.path.basename(video)
+            label = rectify_label[video_name.split('-')[1].capitalize()]
+            
+            video_dir = os.path.join(video_root, identity, video)
+            frames = os.listdir(video_dir)
+            frames.sort()
+            frame_count = len(frames)
+            
+            for frame in frames:
+                imgs_first.append((os.path.join(video_dir, frame), label))
+            
+            video_names.append(video_name)
+            index = np.append(index, np.ones(frame_count) * id)  # id: 0 : 379
+        # index = np.concatenate(index, axis=0)
+    return imgs_first, index
+
+def load_mead_imgs_total_frame_single(video_root, rectify_label):
+    imgs_first = list()
+    
+    index = []
+    video_name = os.path.basename(video_root)
+    label = rectify_label[video_name.split('-')[1].capitalize()]
+    
+    frames = os.listdir(video_root)
+    frames.sort()
+    frame_count = len(frames)
+    
+    for frame in frames:
+        imgs_first.append((os.path.join(video_root, frame), label))
+
+    index = np.append(index, np.ones(frame_count) * 0)  # id: 0 : 379
         # index = np.concatenate(index, axis=0)
     return imgs_first, index
 
